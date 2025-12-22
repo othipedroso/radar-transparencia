@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Radar Transparência 2026</title>
+    <style>
+        :root {
+            --primary: #1a5276; --success: #27ae60; --danger: #c0392b;
+            --warning: #f39c12; --text: #2c3e50; --bg: #f8f9fa; --bar-bg: #e0e0e0;
+            --zap: #25D366; --zap-hover: #128C7E;
+        }
+        body { font-family: 'Segoe UI', Arial, sans-serif; background: var(--bg); margin: 0; padding: 20px; color: var(--text); }
+        .container { max-width: 1100px; margin: auto; text-align: center; }
+        
+        #busca { width: 95%; max-width: 550px; padding: 15px 25px; font-size: 18px; border-radius: 50px; border: 2px solid #ddd; outline: none; box-shadow: 0 4px 6px rgba(0,0,0,0.05); margin-bottom: 20px; }
+        
+        .vitrine { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 20px; padding: 20px 0; }
+        .card { background: white; border-radius: 15px; padding: 20px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); cursor: pointer; text-align: center; transition: 0.3s; border: 1px solid transparent; }
+        .card:hover { transform: translateY(-5px); border-color: var(--success); }
+        .card img { width: 100px; height: 100px; border-radius: 50%; object-fit: cover; background: #eee; }
+        
+        .modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); backdrop-filter: blur(5px); }
+        .modal-content { background: white; margin: 2vh auto; padding: 25px; border-radius: 20px; width: 95%; max-width: 750px; max-height: 90vh; overflow-y: auto; position: relative; }
+        .close { position: absolute; right: 20px; top: 15px; font-size: 28px; cursor: pointer; color: #999; }
+        
+        /* BOTÃO WHATSAPP */
+        .btn-zap {
+            display: flex; align-items: center; justify-content: center; gap: 8px;
+            background: var(--zap); color: white;
+            padding: 12px 20px; border-radius: 50px;
+            font-weight: bold; font-size: 16px;
+            text-decoration: none; margin: 15px auto;
+            width: fit-content; border: none; cursor: pointer;
+            box-shadow: 0 4px 10px rgba(37, 211, 102, 0.3);
+            transition: 0.3s;
+        }
+        .btn-zap:hover { background: var(--zap-hover); transform: scale(1.05); }
+
+        .tab-container { display: flex; border-bottom: 2px solid #eee; margin: 20px 0; }
+        .tab { padding: 10px 20px; cursor: pointer; border-bottom: 3px solid transparent; font-weight: bold; color: #95a5a6; }
+        .tab.active { border-bottom-color: var(--success); color: var(--success); }
+        .tab-content { display: none; padding: 10px 0; }
+        .tab-content.active { display: block; }
+        
+        /* CARD DE RESUMO (O Termômetro) */
+        .resumo-card { background: #eef2f7; padding: 20px; border-radius: 12px; margin-bottom: 20px; text-align: center; border: 1px solid #d1d9e6; }
+        
+        /* Barra de Progresso Personalizada */
+        .termometro-wrapper { margin-top: 25px; position: relative; padding-top: 10px; }
+        .barra-fundo { height: 16px; background: #dcdcdc; border-radius: 8px; overflow: visible; position: relative; }
+        .barra-progresso { height: 100%; border-radius: 8px; transition: width 1s ease-in-out; min-width: 2%; }
+        
+        /* Marcador da Média */
+        .marcador-media { position: absolute; top: -5px; bottom: -5px; width: 4px; background: #2c3e50; z-index: 5; border-radius: 2px; box-shadow: 0 0 5px rgba(0,0,0,0.3); }
+        .legenda-media { position: absolute; top: -25px; left: 50%; transform: translateX(-50%); font-size: 10px; font-weight: bold; color: white; background: #2c3e50; padding: 2px 6px; border-radius: 4px; white-space: nowrap; }
+        
+        /* Listas e Detalhes */
+        .item-lista { padding: 15px; border-bottom: 1px solid #eee; text-align: left; font-size: 13px; }
+        details { background: #fff; border: 1px solid #eee; border-radius: 8px; margin-top: 10px; }
+        summary { padding: 12px; cursor: pointer; font-weight: bold; color: var(--primary); outline: none; list-style: none; display: flex; justify-content: space-between; }
+        
+        .btn-link { display: inline-block; margin-top: 15px; padding: 10px 20px; background: var(--primary); color: white; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 13px; }
+        .loading-spinner { border: 4px solid #f3f3f3; border-top: 4px solid var(--success); border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin: 30px auto; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>🏛️ Radar Transparência 2026</h1>
+    <input type="text" id="busca" placeholder="Busque por nome ou partido...">
+    <div id="vitrine" class="vitrine"></div>
+</div>
+
+<div id="meuModal" class="modal">
+    <div class="modal-content">
+        <span class="close" onclick="fecharModal()">&times;</span>
+        <div id="headerPolitico" style="text-align: center;"></div>
+        
+        <button onclick="compartilharNoZap()" class="btn-zap">
+            📲 Compartilhar Ficha no WhatsApp
+        </button>
+
+        <div class="tab-container">
+            <div class="tab active" onclick="mudarTab(event, 'tab-gastos')">💸 Gastos vs Cota</div>
+            <div class="tab" onclick="mudarTab(event, 'tab-leis')">📊 Produtividade</div>
+            <div class="tab" onclick="mudarTab(event, 'tab-votos')">🗳️ Votos</div>
+        </div>
+
+        <div id="tab-gastos" class="tab-content active"></div>
+        <div id="tab-leis" class="tab-content"></div>
+        <div id="tab-votos" class="tab-content"></div>
+    </div>
+</div>
+
+<script>
+    let todosPoliticos = [];
+    let politicoAtual = {}; // Armazena dados para o compartilhamento
+
+    // --- REFERÊNCIAS VISUAIS DE TRANSPARÊNCIA ---
+    const TETO_COTA_MENSAL = 45000; 
+    const MEDIA_CASA = 31000;       
+
+    function traduzirEmenta(texto) {
+        if (!texto) return "Sem descrição.";
+        return texto.replace(/Altera a Lei nº [\d.]+, de [\d] de \w+ de [\d]+, para /gi, "")
+                    .replace(/Dispõe sobre a /gi, "")
+                    .replace(/Dá nova redação ao /gi, "Atualiza o ")
+                    .split('.')[0] + ".";
+    }
+
+    async function iniciar() {
+        try {
+            const res = await fetch('https://dadosabertos.camara.leg.br/api/v2/deputados?itens=1000&ordem=ASC&ordenarPor=nome');
+            const json = await res.json();
+            todosPoliticos = json.dados;
+            renderizar(todosPoliticos);
+        } catch (e) { console.error("Erro inicial", e); }
+    }
+
+    function renderizar(lista) {
+        document.getElementById('vitrine').innerHTML = lista.map(p => `
+            <div class="card" onclick="abrirDossie(${p.id}, '${p.nome}', '${p.urlFoto}', '${p.siglaPartido}', '${p.siglaUf}')">
+                <img src="${p.urlFoto}" loading="lazy">
+                <h3 style="font-size:15px; margin:10px 0;">${p.nome}</h3>
+                <small style="color:var(--success); font-weight:bold;">${p.siglaPartido} - ${p.siglaUf}</small>
+            </div>
+        `).join('');
+    }
+
+    async function abrirDossie(id, nome, foto, partido, uf) {
+        // Salva os dados básicos no objeto global para o botão de compartilhar usar depois
+        politicoAtual = { id, nome, partido, uf, gastoTotal: 0 };
+
+        document.getElementById('meuModal').style.display = "block";
+        document.getElementById('headerPolitico').innerHTML = `<img src="${foto}" style="width:80px; height:80px; border-radius:50%; border:3px solid var(--success);"><h2>${nome}</h2>`;
+        
+        ['tab-gastos', 'tab-leis', 'tab-votos'].forEach(id => document.getElementById(id).innerHTML = '<div class="loading-spinner"></div>');
+        
+        carregarGastos(id);
+        carregarLeis(id);
+        carregarVotos(id);
+    }
+
+    function compartilharNoZap() {
+        const valorFormatado = politicoAtual.gastoTotal > 0 ? `R$ ${politicoAtual.gastoTotal.toLocaleString('pt-BR')}` : "Não carregado/Zerado";
+        
+        const texto = `🚨 *Radar Transparência 2026* 🚨%0A%0A` +
+                      `Confira a ficha do deputado *${politicoAtual.nome}* (${politicoAtual.partido}-${politicoAtual.uf}):%0A%0A` +
+                      `💸 *Gastos Recentes:* ${valorFormatado}%0A` +
+                      `🗳️ Veja os votos e projetos completos no perfil oficial:%0A` +
+                      `https://www.camara.leg.br/deputados/${politicoAtual.id}%0A%0A` +
+                      `#FiscalizaçãoCidadã #Transparencia`;
+        
+        window.open(`https://wa.me/?text=${texto}`, '_blank');
+    }
+
+    // --- LÓGICA DE GASTOS BLINDADA ---
+    async function carregarGastos(id) {
+        const tab = document.getElementById('tab-gastos');
+        try {
+            const res = await fetch(`https://dadosabertos.camara.leg.br/api/v2/deputados/${id}/despesas?ordem=DESC&itens=50`);
+            
+            if (!res.ok) throw new Error("API Indisponível");
+            
+            const json = await res.json();
+            
+            if (!json.dados || json.dados.length === 0) {
+                tab.innerHTML = "<p style='padding:20px; color:#666'>Sem registros recentes de gastos.</p>";
+                politicoAtual.gastoTotal = 0;
+                return;
+            }
+
+            const total = json.dados.reduce((acc, g) => acc + g.valorLiquido, 0);
+            politicoAtual.gastoTotal = total; // Atualiza o valor para o botão de compartilhar
+
+            const pctUso = Math.min((total / TETO_COTA_MENSAL) * 100, 100);
+            const posMedia = (MEDIA_CASA / TETO_COTA_MENSAL) * 100;
+            
+            let corBarra = "linear-gradient(90deg, #f1c40f, #27ae60)";
+            if (total > MEDIA_CASA) corBarra = "linear-gradient(90deg, #f39c12, #c0392b)";
+            
+            let html = `
+                <div class="resumo-card">
+                    <small>GASTO ACUMULADO (RECENTE)</small><br>
+                    <strong style="font-size:26px; color:#2c3e50">R$ ${total.toLocaleString('pt-BR')}</strong>
+                    
+                    <div class="termometro-wrapper">
+                        <div style="display:flex; justify-content:space-between; font-size:11px; margin-bottom:5px;">
+                            <span>R$ 0</span>
+                            <span style="font-weight:bold; color:#c0392b">Teto (~R$ 45k)</span>
+                        </div>
+                        <div class="barra-fundo">
+                            <div class="marcador-media" style="left: ${posMedia}%">
+                                <span class="legenda-media">Média da Casa</span>
+                            </div>
+                            <div class="barra-progresso" style="width: ${pctUso}%; background: ${corBarra};"></div>
+                        </div>
+                    </div>
+                    <small style="display:block; margin-top:15px; color:#666">Comparativo baseado na média mensal histórica.</small>
+                </div>
+                <div style="text-align:left; padding:10px 5px; font-weight:bold; color:#555;">Detalhamento das notas:</div>
+            `;
+            
+            html += json.dados.slice(0, 10).map(g => `
+                <div class="item-lista" style="display:flex; justify-content:space-between;">
+                    <span>${g.nomeFornecedor.toLowerCase().substring(0, 25)}... <br><small style="color:#999; font-size:11px">${g.tipoDespesa}</small></span>
+                    <strong>R$ ${g.valorLiquido.toLocaleString('pt-BR')}</strong>
+                </div>`).join('');
+                
+            tab.innerHTML = html;
+        } catch (e) {
+            console.error(e);
+            tab.innerHTML = `<div style="padding:20px; text-align:center;"><p style="color:#c0392b">Erro ao conectar com a Transparência.</p><button onclick="carregarGastos(${id})" style="padding:10px 20px; background:var(--primary); color:white; border:none; border-radius:5px; cursor:pointer;">Tentar Novamente</button></div>`;
+        }
+    }
+
+    async function carregarLeis(id) {
+        const tab = document.getElementById('tab-leis');
+        try {
+            const res = await fetch(`https://dadosabertos.camara.leg.br/api/v2/proposicoes?idDeputadoAutor=${id}&siglaTipo=PL,PEC&itens=100`);
+            const json = await res.json();
+            
+            if (!json.dados || json.dados.length === 0) {
+                tab.innerHTML = "<p style='padding:20px'>Nenhum projeto de lei recente encontrado.</p>";
+                return;
+            }
+
+            const categorias = { Saúde: [], Segurança: [], Economia: [], Outros: [] };
+            json.dados.forEach(l => {
+                const e = l.ementa.toLowerCase();
+                const proj = { id: l.id, txt: traduzirEmenta(l.ementa), ref: `${l.siglaTipo} ${l.numero}/${l.ano}` };
+                if (e.includes("saúde") || e.includes("hospital")) categorias.Saúde.push(proj);
+                else if (e.includes("segurança") || e.includes("penal")) categorias.Segurança.push(proj);
+                else if (e.includes("economia") || e.includes("imposto")) categorias.Economia.push(proj);
+                else categorias.Outros.push(proj);
+            });
+
+            let html = `<div class="resumo-card"><strong>Atuação por Área Temática</strong></div>`;
+            for (let area in categorias) {
+                const qtd = categorias[area].length;
+                if(qtd > 0) {
+                    html += `
+                        <details>
+                            <summary>
+                                <span>${area}</span>
+                                <span style="background:#eee; padding:2px 8px; border-radius:10px; font-size:12px">${qtd}</span>
+                            </summary>
+                            ${categorias[area].map(p => `
+                                <div class="item-lista">
+                                    <small style="color:var(--primary); font-weight:bold">${p.ref}</small><br>
+                                    ${p.txt}<br>
+                                    <a href="https://www.camara.leg.br/proposicoesWeb/fichadetramitacao?idProposicao=${p.id}" target="_blank" style="font-size:11px; color:var(--success); text-decoration:none; font-weight:bold">📄 Ver documento oficial ↗</a>
+                                </div>`).join('')}
+                        </details>`;
+                }
+            }
+            tab.innerHTML = html;
+        } catch (e) { tab.innerHTML = "<p>Erro ao carregar dados de produtividade.</p>"; }
+    }
+
+    async function carregarVotos(id) {
+        const tab = document.getElementById('tab-votos');
+        try {
+            const res = await fetch(`https://dadosabertos.camara.leg.br/api/v2/deputados/${id}/votos?ordem=DESC`);
+            if (!res.ok) throw new Error("API Votos Error");
+            const json = await res.json();
+            
+            let html = `<div style="text-align:center; padding-bottom:10px"><a href="https://www.camara.leg.br/deputados/${id}" target="_blank" class="btn-link">Auditar Perfil Oficial na Câmara ↗</a></div>`;
+
+            if (json.dados && json.dados.length > 0) {
+                html += json.dados.slice(0, 15).map(v => {
+                    const voto = v.tipoVoto ? v.tipoVoto.toUpperCase() : "PRESENTE";
+                    const cor = voto === 'SIM' ? 'var(--success)' : (voto === 'NÃO' ? 'var(--danger)' : 'var(--warning)');
+                    return `<div class="item-lista" style="border-left: 4px solid ${cor}">
+                        <div style="display:flex; justify-content:space-between">
+                            <span style="font-weight:900; color:${cor}">VOTOU: ${voto}</span>
+                            <small>${v.dataHoraRegistro.split('T')[0]}</small>
+                        </div>
+                        <p style="margin:5px 0; font-weight:bold">${v.proposicaoObjeto || "Pauta do Plenário"}</p>
+                    </div>`;
+                }).join('');
+            } else {
+                html += "<p style='text-align:center; color:#999; padding:20px;'>Votos nominais recentes não encontrados. Muitas vezes a votação é simbólica (acordo de líderes).<br><br>Use o botão acima para ver o histórico oficial completo.</p>";
+            }
+            tab.innerHTML = html;
+        } catch (e) { 
+            tab.innerHTML = `<div style="text-align:center; padding:20px"><p>A API de votações está instável.</p><a href="https://www.camara.leg.br/deputados/${id}" target="_blank" class="btn-link">Ver no Site Oficial</a></div>`; 
+        }
+    }
+
+    function mudarTab(evt, tabId) {
+        document.querySelectorAll('.tab, .tab-content').forEach(el => el.classList.remove('active'));
+        evt.currentTarget.classList.add('active');
+        document.getElementById(tabId).classList.add('active');
+    }
+    function fecharModal() { document.getElementById('meuModal').style.display = "none"; }
+    
+    document.getElementById('busca').addEventListener('input', (e) => {
+        const t = e.target.value.toLowerCase();
+        renderizar(todosPoliticos.filter(p => p.nome.toLowerCase().includes(t) || p.siglaPartido.toLowerCase().includes(t)));
+    });
+
+    iniciar();
+</script>
+</body>
+</html>
